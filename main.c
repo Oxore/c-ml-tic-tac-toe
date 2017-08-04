@@ -23,6 +23,7 @@ typedef struct {
 } nodemod;
 
 int keyboard();
+int kauto();
 void printFld(char *f);
 int check(char *f);
 int AI(char *f, nodemod **game, int *gamelen, neuron **net, int *netlen);
@@ -57,10 +58,14 @@ int main()
 		while (set == 0) {
 			if (gameState[0] == 0)
 				cell = keyboard();
+				/* comment line above and uncomment line below 
+				 * to let to play automatically 
+				 * with script auto.sh
+				 */
+				//cell = kauto();
 			else
 				if (!(cell = AI(gameState, &game, &gamelen,
-						&net, &netlen)
-				)) {
+						&net, &netlen))) {
 					printf("AI returned err cell %d\n", 
 									cell);
 					exit(-1);
@@ -106,6 +111,13 @@ int keyboard()
 		if (ret < 1 || ret > 9)
 			printf("Your number does not met requirements\n");
 	}
+	return ret;
+}
+
+int kauto()
+{
+	int ret = 0;
+	ret = rand()%9+1;
 	return ret;
 }
 
@@ -157,7 +169,7 @@ int check(char *f)
 int AI(char *f, nodemod **game, int *gamelen, neuron **net, int *netlen)
 {
 	neuron *a;
-	if (!(a = findN(f, *net, *netlen))) {
+	if (!(a = findN(f, *net, *netlen)))
 		a = createN(f, net, netlen);
 	int tmp = 0;
 	double prev = 0;
@@ -179,10 +191,14 @@ neuron *findN(char *f, neuron *net, int netlen)
 {
 	neuron *ptr = net;
 	for (int i = 0; i < netlen; i++) {
-		if (!(memcmp(f, ptr->f, 10)))
+		if (!(memcmp(f, ptr->f, 10))) {
+			for (int j = 0; j < 9; j++) {
+				printf("p[%d] = %lf\n", j, ptr->p[j]);
+			}
 			break;
-		else
+		} else {
 			ptr = ptr->next;
+		}
 	}
 	return ptr; // 0 if not found
 }
@@ -238,16 +254,16 @@ int modifyN(nodemod *game, int gamelen, neuron **net, int netlen)
 			for (int j = 0; j < 9; j++) {
 				if (j == game[i].cell)
 					continue;
-				a->p[j]	*= 1 - delta / remain;
+				a->p[j]	*= (1 - delta / remain);
 			}
 			a->p[game[i].cell] += delta;
 			break;
 		case BAD:
-			delta = remain / 4;
+			delta = a->p[game[i].cell] / 4;
 			for (int j = 0; j < 9; j++) {
 				if (j == game[i].cell)
 					continue;
-				a->p[j]	*= 1 + delta / remain;
+				a->p[j]	*= (1 + delta / remain);
 			}
 			a->p[game[i].cell] -= delta;
 			break;
@@ -256,7 +272,7 @@ int modifyN(nodemod *game, int gamelen, neuron **net, int netlen)
 			for (int j = 0; j < 9; j++) {
 				if (j == game[i].cell)
 					continue;
-				a->p[j]	*= 1 - delta / remain;
+				a->p[j]	*= 1 - (delta / remain);
 			}
 			a->p[game[i].cell] += delta;
 			break;
@@ -284,7 +300,6 @@ int saveN (char *filename, neuron *net, int netlen)
 	char *string;
 	int nodeln = 10*sizeof(char) + 9*sizeof(double) + 1;
 	int strln = netlen * nodeln + 7 + sizeof(int) + 1;
-	printf("netlen = %d\n", netlen);
 	neuron *ptr;
 	string = (char *)malloc(strln);
 	memcpy(string, "MLv0.1\n", 7);
@@ -303,6 +318,7 @@ int saveN (char *filename, neuron *net, int netlen)
 	memcpy(string+strln-1, "\0", 1);
 	binFileWrite(filename, string, strln);
 	free(string);
+	printf("%d nodes saved\n", netlen);
 	return 0;
 }
 
@@ -320,7 +336,7 @@ int loadN(char *filename, neuron **net, int *netlen)
 	}
 	b = b + 7;
 	blen -= 7;
-	int netlenToBe = (int)*b;
+	int netlenToBe = (int)*((int *)b);
 	b = b + 4;
 	blen -= 4;
 	for (int i = 0; i < netlenToBe; i++) {
@@ -329,6 +345,7 @@ int loadN(char *filename, neuron **net, int *netlen)
 		memcpy(ptr->p, b + 10*sizeof(char) + i*nodeln,
 							9*sizeof(double));
 	}
+	printf("%d of %d nodes loaded\n", *netlen, netlenToBe);
 	return 0;
 }
 
