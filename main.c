@@ -8,9 +8,12 @@
 #define GOOD 1
 #define BAD -1
 #define DRAW 0
-#define DELTA_GOOD 289
-#define DELTA_BAD -289
-#define DELTA_DRAW 17
+#define DELTA_GOOD 2000
+#define DELTA_BAD -2000
+#define DELTA_DRAW 1000
+#define NMAX 10000
+#define NSTART 5000
+#define NMIN 1
 
 typedef struct {
 	char f[10];
@@ -212,7 +215,8 @@ int AI(char *f, nodemod **game, int *gamelen, neuron **net, int *netlen)
 	int prev = 0;
 	for (int i = 0; i < 9; i++)
 		sum += a->p[i];
-	tmp = rand()%(sum+1);
+	tmp = rand()%(sum);
+	//printf("sum = %d, tmp = %d\n",sum, tmp);
 	for (int i = 0; i < 9; i++) {
 		prev += a->p[i];
 		if (tmp < prev) {
@@ -283,7 +287,7 @@ neuron *createN(char *f, neuron **net, int *netlen)
 	int count = 0;
 	for (int i = 0; i < 9; i++) {
 		if (ptr->f[i+1] == '.') {
-			ptr->p[i] = 50000;
+			ptr->p[i] = NSTART;
 			count++;
 		} else {
 			ptr->p[i] = 0;
@@ -325,18 +329,18 @@ int modifyN(nodemod *game, int gamelen, neuron **net, int netlen)
 		switch(game[i].boy) {
 		case GOOD:
 			delta = DELTA_GOOD;
-			if ((a->p[game[i].cell] + delta) > 100000)
-				delta = 100000 - a->p[game[i].cell];
+			if ((a->p[game[i].cell] + delta) > NMAX)
+				delta = NMAX - a->p[game[i].cell];
 			break;
 		case BAD:
 			delta = DELTA_BAD;
-			if ((a->p[game[i].cell]) - delta < 1)
-				delta = a->p[game[i].cell] - 1;
+			if ((a->p[game[i].cell] + delta) < NMIN)
+				delta = NMIN - a->p[game[i].cell];
 			break;
 		case DRAW:
 			delta = DELTA_DRAW;
-			if ((a->p[game[i].cell] + delta) > 100000)
-				delta = 100000 - a->p[game[i].cell];
+			if ((a->p[game[i].cell] + delta) > NMAX)
+				delta = NMAX - a->p[game[i].cell];
 			break;
 		default:
 			printf("Encorage type error %d\n", game->boy);
