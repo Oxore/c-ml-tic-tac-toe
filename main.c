@@ -2,8 +2,7 @@
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <math.h>
+#include <signal.h>
 
 #define GOOD 1
 #define BAD -1
@@ -14,6 +13,12 @@
 #define NMAX 10000
 #define NSTART 5000
 #define NMIN 1
+
+static volatile int keepRunning = 1;
+
+void intHandler(int dummy) {
+    keepRunning = 0;
+}
 
 typedef struct {
 	char f[10];
@@ -60,79 +65,83 @@ int main()
 			input != 'a' && input != 'A') {
 		printf("Chose mode manual(m) or auto(a): ");
 		input = getchar();
-		if (input == 'm' || input == 'M')
+		if (input == 'm' || input == 'M') {
 			manual = 1;
-	}
-	start:
-	net = NULL; // pointer to first neuron in list
-	netlen = 0; // total count of network neurons
-	game = NULL; // neuron chain of game
-	gamelen = 0; // neuron chain length
-	loadN("net.mlx", &net, &netlen);
-	char gameState[10] = {0};
-	memset(gameState+1, '.', 9);
-	int cell = 0;
-	while (1) {
-		if (manual) {
-			printFld(gameState);
-			if (gameState[0] == 0)
-				printf("X turn\n");
-			else
-				printf("O turn\n");
+		} else { 
+			printf("Atomatic learning...\n");
+			signal(SIGINT, intHandler);
 		}
-		int set = 0;
-		while (set == 0) {
-			if (gameState[0] == 0)
-				if (manual)
-					cell = keyboard();
-				else
-					cell = kauto();
-			else
-				if (!(cell = AI(gameState, &game, &gamelen,
-						&net, &netlen))) {
-					printf("AI returned err cell %d\n", 
-									cell);
-					saveN("net.mlx", net, netlen);
-					exit(-1);
-				}
-			if (gameState[cell] != '.') {
-				if (manual)
-					printf("this cell is already filled\n");
-			} else {
+	}
+	while (keepRunning) {
+		net = NULL; // pointer to first neuron in list
+		netlen = 0; // total count of network neurons
+		game = NULL; // neuron chain of game
+		gamelen = 0; // neuron chain length
+		loadN("net.mlx", &net, &netlen);
+		char gameState[10] = {0};
+		memset(gameState+1, '.', 9);
+		int cell = 0;
+		while (1) {
+			if (manual) {
+				keepRunning = 0;
+				printFld(gameState);
 				if (gameState[0] == 0)
-					gameState[cell] = 'X';
+					printf("X turn\n");
 				else
-					gameState[cell] = 'O';
-				set = 1;
+					printf("O turn\n");
 			}
-		}
-		set = 0;
-		if ((win = check(gameState))) {
-			if (manual)
-				switch (win){
-				case 1:
-					printf("X is winner!\n");
-					break;
-				case 2:
-					printf("O is winner!\n");
-					break;
-				case 3:
-					printf("Draw...\n");
-					break;
+			int set = 0;
+			while (set == 0) {
+				if (gameState[0] == 0)
+					if (manual)
+						cell = keyboard();
+					else
+						cell = kauto();
+				else
+					if (!(cell = AI(gameState, &game, &gamelen,
+							&net, &netlen))) {
+						printf("AI returned err cell %d\n", 
+										cell);
+						saveN("net.mlx", net, netlen);
+						exit(-1);
+					}
+				if (gameState[cell] != '.') {
+					if (manual)
+						printf("this cell is already filled\n");
+				} else {
+					if (gameState[0] == 0)
+						gameState[cell] = 'X';
+					else
+						gameState[cell] = 'O';
+					set = 1;
 				}
-			break;
+			}
+			set = 0;
+			if ((win = check(gameState))) {
+				if (manual)
+					switch (win){
+					case 1:
+						printf("X is winner!\n");
+						break;
+					case 2:
+						printf("O is winner!\n");
+						break;
+					case 3:
+						printf("Draw...\n");
+						break;
+					}
+				break;
+			}
+			if (gameState[0] == 0)
+				gameState[0] = 1;
+			else
+				gameState[0] = 0;
 		}
-		if (gameState[0] == 0)
-			gameState[0] = 1;
-		else
-			gameState[0] = 0;
+		modifyN(game, gamelen, &net, netlen);
+		free(game);
+		saveN("net.mlx", net, netlen);
+		rmnetN(&net, &netlen);
 	}
-	modifyN(game, gamelen, &net, netlen);
-	free(game);
-	saveN("net.mlx", net, netlen);
-	rmnetN(&net, &netlen);
-	if (!manual)
-		goto start;
 	return 0;
 }
 
